@@ -138,6 +138,20 @@ const reports = [
 
 let nextId = reports.length + 1;
 
+function getStats() {
+  const totalReports = reports.length;
+  const openCount = reports.filter((r) => r.status === 'Open').length;
+  const inProgressCount = reports.filter((r) => r.status === 'In Progress').length;
+  const resolvedCount = reports.filter((r) => r.status === 'Resolved').length;
+
+  return {
+    totalReports,
+    openCount,
+    inProgressCount,
+    resolvedCount,
+  };
+}
+
 function getReports() {
   return reports;
 }
@@ -160,6 +174,8 @@ function createReport(data) {
     aiSummary: data.aiSummary?.trim() || '',
     aiUrgency: data.aiUrgency || data.severity || 'Medium',
     upvotes: 0,
+    isVerified: data.isVerified ?? false,
+    priority: data.priority || data.severity || 'Medium',
     createdAt: new Date().toISOString(),
   };
 
@@ -177,6 +193,17 @@ function upvoteReport(report) {
   return report;
 }
 
+function verifyReport(report) {
+  report.isVerified = true;
+  return report;
+}
+
+function setReportPriority(report, priority) {
+  report.priority = priority;
+  report.severity = priority;
+  return report;
+}
+
 module.exports = {
   CATEGORIES,
   SEVERITIES,
@@ -186,4 +213,7 @@ module.exports = {
   createReport,
   updateReportStatus,
   upvoteReport,
+  getStats,
+  verifyReport,
+  setReportPriority,
 };

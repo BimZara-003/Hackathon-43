@@ -1,4 +1,5 @@
 const reportStore = require('../models/reportStore');
+const aiService = require('../services/aiService');
 
 function matchOption(value, options) {
   if (typeof value !== 'string') return null;
@@ -133,10 +134,60 @@ function upvote(req, res) {
   return res.json({ message: 'Upvote added successfully', report });
 }
 
+async function analyzeReport(req, res) {
+  const { description } = req.body || {};
+  if (typeof description !== 'string' || !description.trim()) {
+    return res.status(400).json({ error: 'Description is required' });
+  }
+  if (description.trim().length < 10) {
+    return res.status(400).json({ error: 'Description must be at least 10 characters for AI analysis' });
+  }
+
+  const result = await aiService.analyzeReportDescription(description.trim());
+  return res.json(result);
+}
+
+function getStats(req, res) {
+  const stats = reportStore.getStats();
+  return res.json(stats);
+}
+
+function verifyReport(req, res) {
+  const report = reportStore.findReportById(req.params.id);
+  if (!report) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  reportStore.verifyReport(report);
+  return res.json({ message: 'Report marked as verified', report });
+}
+
+function setPriority(req, res) {
+  const report = reportStore.findReportById(req.params.id);
+  if (!report) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  let priority = req.body?.priority;
+  if (priority) {
+    priority = matchOption(priority, reportStore.SEVERITIES);
+  }
+  if (!priority) {
+    priority = 'High';
+  }
+
+  reportStore.setReportPriority(report, priority);
+  return res.json({ message: 'Report priority updated successfully', report });
+}
+
 module.exports = {
   listReports,
   getReport,
   addReport,
   changeStatus,
   upvote,
+  analyzeReport,
+  getStats,
+  verifyReport,
+  setPriority,
 };

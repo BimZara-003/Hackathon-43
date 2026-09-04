@@ -7,12 +7,16 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
+const reportController = require('./controllers/reportController');
+
 app.get('/', (req, res) => {
   res.json({
     message: 'Mithuru Mawatha API is running',
     documentation: 'See backend/API.md in the project repository',
   });
 });
+
+app.get('/stats', reportController.getStats);
 
 app.use('/reports', reportRoutes);
 
