@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { AlertCircle, CheckCircle2, Upload, MapPin, ShieldAlert, Sparkles } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { AlertCircle, CheckCircle2, Upload, MapPin, ShieldAlert, Sparkles, X } from 'lucide-react';
+
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 
 const Report = () => {
   const [formData, setFormData] = useState({
@@ -16,6 +18,15 @@ const Report = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedResult, setSubmittedResult] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const photoInputRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+    };
+  }, [photoPreview]);
 
   const categories = [
     'Pothole',
@@ -56,6 +67,33 @@ const Report = () => {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
+  };
+
+  const handlePhotoChange = (e) => {
+    const selectedPhoto = e.target.files?.[0];
+    if (!selectedPhoto) return;
+
+    if (!selectedPhoto.type.startsWith('image/')) {
+      setErrors((prev) => ({ ...prev, photo: 'Please choose an image file.' }));
+      e.target.value = '';
+      return;
+    }
+
+    if (selectedPhoto.size > MAX_PHOTO_SIZE) {
+      setErrors((prev) => ({ ...prev, photo: 'Image must be 5 MB or smaller.' }));
+      e.target.value = '';
+      return;
+    }
+
+    setPhoto(selectedPhoto);
+    setPhotoPreview(URL.createObjectURL(selectedPhoto));
+    setErrors((prev) => ({ ...prev, photo: null }));
+  };
+
+  const removePhoto = () => {
+    setPhoto(null);
+    setPhotoPreview(null);
+    if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
   const submitReport = (data) => {
@@ -117,6 +155,7 @@ const Report = () => {
               setFormData({
                 title: '', description: '', category: '', location: '', severity: 'Medium', timeOfDay: '', safetyContext: '', isAnonymous: false
               });
+              removePhoto();
             }}
             className="mt-8 px-6 py-2 bg-orange-600 text-white rounded-full hover:bg-orange-700 font-medium"
           >
@@ -260,13 +299,49 @@ const Report = () => {
               </div>
             </div>
 
-            {/* Photo Upload (UI Only) */}
+            {/* Photo Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Photo (Optional)</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 flex items-center justify-center text-gray-500 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors">
-                <Upload className="w-5 h-5 mr-2" />
-                <span className="text-sm">Upload Image</span>
-              </div>
+              <input
+                ref={photoInputRef}
+                id="report-photo"
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="sr-only"
+              />
+              {photoPreview ? (
+                <div className="relative flex items-center gap-3 rounded-lg border border-gray-300 bg-gray-50 p-2">
+                  <img src={photoPreview} alt="Selected report" className="h-16 w-16 rounded object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-700">{photo.name}</p>
+                    <p className="text-xs text-gray-500">{Math.ceil(photo.size / 1024)} KB</p>
+                  </div>
+                  <label
+                    htmlFor="report-photo"
+                    className="cursor-pointer rounded px-2 py-1 text-sm font-medium text-orange-600 hover:bg-orange-50"
+                  >
+                    Change
+                  </label>
+                  <button
+                    type="button"
+                    onClick={removePhoto}
+                    className="rounded p-1.5 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+                    aria-label="Remove selected photo"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  htmlFor="report-photo"
+                  className="flex cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-2 text-gray-500 transition-colors hover:bg-gray-100"
+                >
+                  <Upload className="mr-2 h-5 w-5" />
+                  <span className="text-sm">Upload Image</span>
+                </label>
+              )}
+              {errors.photo && <p className="mt-1 flex items-center text-sm text-red-500"><AlertCircle className="mr-1 h-4 w-4" />{errors.photo}</p>}
             </div>
           </div>
 
