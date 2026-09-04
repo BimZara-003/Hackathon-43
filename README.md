@@ -1,4 +1,4 @@
-# Mithuru Mawatha (Friendly Road) 🛣️🇱🇰
+# Mithuru Mawatha (Friendly Road)
 
 > A practical digital community hazard and safety reporting platform for Sri Lanka, featuring smart AI triage and women's safety layer.
 
