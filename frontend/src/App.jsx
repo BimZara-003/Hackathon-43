@@ -4,7 +4,8 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import About from './pages/About';
 import Report from './pages/Report';
-import Placeholder from './pages/Placeholder';
+import AllReports from './pages/AllReports';
+import MapView from './pages/MapView';
 import './App.css';
 
 function App() {
@@ -14,12 +15,11 @@ function App() {
         <Navbar />
         <main>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/report" element={<Report />} />
-            {/* Teammate will replace these Placeholders with actual components */}
-            <Route path="/reports" element={<Placeholder title="All Reports" />} />
-            <Route path="/map" element={<Placeholder title="Map View" />} />
+            <Route path="/"        element={<Home />} />
+            <Route path="/about"   element={<About />} />
+            <Route path="/report"  element={<Report />} />
+            <Route path="/reports" element={<AllReports />} />
+            <Route path="/map"     element={<MapView />} />
           </Routes>
         </main>
       </div>
