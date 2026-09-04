@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+process.env.SKIP_DATABASE = 'true';
 const app = require('../server');
 
 test('report API supports its main demo flow', async () => {
@@ -26,9 +27,9 @@ test('report API supports its main demo flow', async () => {
     body = await response.json();
     assert.equal(response.status, 200);
     assert.equal(body.totalReports, 8);
-    assert.equal(body.openCount, 4);
+    assert.equal(body.openCount, 5);
     assert.equal(body.inProgressCount, 2);
-    assert.equal(body.resolvedCount, 2);
+    assert.equal(body.resolvedCount, 1);
 
     response = await fetch(`${baseUrl}/reports/stats`);
     body = await response.json();

@@ -8,6 +8,22 @@ const authRoutes = require('./routes/authRoutes');
 const reportController = require('./controllers/reportController');
 
 const app = express();
+let databaseInitialization;
+
+async function initializeDatabase() {
+  if (process.env.SKIP_DATABASE === 'true') return false;
+
+  if (!databaseInitialization) {
+    databaseInitialization = connectDB().then(async (connected) => {
+      if (connected) {
+        await reportStore.seedDatabaseIfEmpty();
+      }
+      return connected;
+    });
+  }
+
+  return databaseInitialization;
+}
 
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
@@ -17,6 +33,15 @@ app.get('/', (req, res) => {
     message: 'Mithuru Mawatha API is running',
     documentation: 'See backend/API.md in the project repository',
   });
+});
+
+app.use(async (req, res, next) => {
+  try {
+    await initializeDatabase();
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get('/stats', reportController.getStats);
@@ -40,12 +65,8 @@ app.use((error, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 if (require.main === module) {
-  app.listen(PORT, async () => {
+  app.listen(PORT, () => {
     console.log(`Mithuru Mawatha API running on port ${PORT}`);
-    const connected = await connectDB();
-    if (connected) {
-      await reportStore.seedDatabaseIfEmpty();
-    }
   });
 }
 
