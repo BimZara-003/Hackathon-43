@@ -71,11 +71,11 @@ The server will start at `http://localhost:5000`.
 
 ---
 
-## Architecture & Code Overview for Live Demo
+## Architecture & Code Overview (Clean MERN Layering)
 
-- `server.js`: Configures Express app, CORS, routes, error handling, and server startup.
-- `models/reportStore.js`: In-memory data store seeded with 8 Sri Lankan road hazard & safety reports.
-- `services/aiService.js`: Isolated AI module holding the system prompt, Gemini API fetcher, and graceful fallback classifier.
-- `controllers/reportController.js`: Request handlers and input validators.
-- `routes/reportRoutes.js`: Express router mapping HTTP endpoints to controller actions.
+- **Routes (`routes/reportRoutes.js`)**: Express router mapping HTTP routes to controller methods.
+- **Controllers (`controllers/reportController.js`)**: Pure HTTP request/response handlers. Manages status codes (`200`, `201`, `400`, `404`) and delegates business operations to `reportService`.
+- **Services (`services/reportService.js` & `services/aiService.js`)**: Contains domain business logic, validations, query filtering, stats calculation, and AI triage.
+- **Models (`models/reportStore.js`)**: Data access layer holding data schemas, constants, pre-seeded Sri Lankan reports, and state persistence methods.
+- `server.js`: Express application initialization, CORS, global error handling, and server lifecycle.
 - `test/reportApi.test.js`: Native Node test suite validating API features.
