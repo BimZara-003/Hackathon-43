@@ -1,13 +1,16 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const connectDB = require('./config/db');
+const reportStore = require('./models/reportStore');
 const reportRoutes = require('./routes/reportRoutes');
+const authRoutes = require('./routes/authRoutes');
+const reportController = require('./controllers/reportController');
 
 const app = express();
 
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
-
-const reportController = require('./controllers/reportController');
 
 app.get('/', (req, res) => {
   res.json({
@@ -18,6 +21,7 @@ app.get('/', (req, res) => {
 
 app.get('/stats', reportController.getStats);
 
+app.use('/auth', authRoutes);
 app.use('/reports', reportRoutes);
 
 app.use((req, res) => {
@@ -36,8 +40,12 @@ app.use((error, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 if (require.main === module) {
-  app.listen(PORT, () => {
+  app.listen(PORT, async () => {
     console.log(`Mithuru Mawatha API running on port ${PORT}`);
+    const connected = await connectDB();
+    if (connected) {
+      await reportStore.seedDatabaseIfEmpty();
+    }
   });
 }
 

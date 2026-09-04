@@ -27,7 +27,8 @@ import {
   useMap,
 } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+// Leaflet CSS is loaded via CDN link in index.html to prevent PostCSS bundling errors
+// import 'leaflet/dist/leaflet.css';
 
 // ─── Colour / icon helpers ─────────────────────────────────────────────────
 

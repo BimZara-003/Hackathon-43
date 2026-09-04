@@ -1,5 +1,6 @@
 const express = require('express');
 const reportController = require('../controllers/reportController');
+const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -7,6 +8,7 @@ router.get('/', reportController.listReports);
 router.post('/', reportController.addReport);
 router.post('/analyze', reportController.analyzeReport);
 router.get('/stats', reportController.getStats);
+router.get('/user/my-reports', protect, reportController.listMyReports);
 router.get('/:id', reportController.getReport);
 router.patch('/:id/status', reportController.changeStatus);
 router.post('/:id/upvote', reportController.upvote);

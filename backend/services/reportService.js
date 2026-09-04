@@ -55,8 +55,8 @@ function validateNewReport(data) {
   }
 }
 
-function getAllReports(filters = {}) {
-  let reports = [...reportStore.getReports()];
+async function getAllReports(filters = {}) {
+  let reports = await reportStore.getReports();
 
   if (filters.category) {
     const category = matchOption(filters.category, reportStore.CATEGORIES);
@@ -90,8 +90,8 @@ function getAllReports(filters = {}) {
   return reports;
 }
 
-function getReportById(id) {
-  const report = reportStore.findReportById(id);
+async function getReportById(id) {
+  const report = await reportStore.findReportById(id);
   if (!report) {
     const error = new Error('Report not found');
     error.statusCode = 404;
@@ -100,43 +100,43 @@ function getReportById(id) {
   return report;
 }
 
-function createReport(data) {
+async function createReport(data) {
   validateNewReport(data);
-  return reportStore.createReport(data);
+  return await reportStore.createReport(data);
 }
 
-function updateReportStatus(id, newStatus) {
-  const report = getReportById(id);
+async function updateReportStatus(id, newStatus) {
+  const report = await getReportById(id);
   const status = matchOption(newStatus, reportStore.STATUSES);
   if (!status) {
     const error = new Error(`Status must be one of: ${reportStore.STATUSES.join(', ')}`);
     error.statusCode = 400;
     throw error;
   }
-  return reportStore.updateReportStatus(report, status);
+  return await reportStore.updateReportStatus(report.id || id, status);
 }
 
-function upvoteReport(id) {
-  const report = getReportById(id);
-  return reportStore.upvoteReport(report);
+async function upvoteReport(id) {
+  const report = await getReportById(id);
+  return await reportStore.upvoteReport(report.id || id);
 }
 
-function getPlatformStats() {
-  return reportStore.getStats();
+async function getPlatformStats() {
+  return await reportStore.getStats();
 }
 
-function verifyReport(id) {
-  const report = getReportById(id);
-  return reportStore.verifyReport(report);
+async function verifyReport(id) {
+  const report = await getReportById(id);
+  return await reportStore.verifyReport(report.id || id);
 }
 
-function updateReportPriority(id, newPriority) {
-  const report = getReportById(id);
+async function updateReportPriority(id, newPriority) {
+  const report = await getReportById(id);
   let priority = newPriority ? matchOption(newPriority, reportStore.SEVERITIES) : 'High';
   if (!priority) {
     priority = 'High';
   }
-  return reportStore.setReportPriority(report, priority);
+  return await reportStore.setReportPriority(report.id || id, priority);
 }
 
 async function analyzeReport(description) {
@@ -154,8 +154,18 @@ async function analyzeReport(description) {
   return await aiService.analyzeReportDescription(description.trim());
 }
 
+async function getUserReports(userId) {
+  if (!userId) {
+    const error = new Error('User ID is required');
+    error.statusCode = 400;
+    throw error;
+  }
+  return await reportStore.getUserReports(userId);
+}
+
 module.exports = {
   getAllReports,
+  getUserReports,
   getReportById,
   createReport,
   updateReportStatus,

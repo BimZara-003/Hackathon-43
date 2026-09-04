@@ -1,21 +1,7 @@
-const CATEGORIES = [
-  'Pothole',
-  'Streetlight',
-  'Drainage',
-  'Road Damage',
-  'Unsafe Area',
-  'Other',
-];
+const { Report, CATEGORIES, SEVERITIES, STATUSES } = require('./Report');
 
-const SEVERITIES = ['Low', 'Medium', 'High'];
-const STATUSES = ['Open', 'In Progress', 'Resolved'];
-
-const daysAgo = (days) =>
-  new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-
-const reports = [
+const initialSeedReports = [
   {
-    id: '1',
     title: 'Deep pothole near Bambalapitiya junction',
     description: 'A deep pothole in the left lane is forcing buses to swerve suddenly.',
     category: 'Pothole',
@@ -27,10 +13,12 @@ const reports = [
     aiSummary: 'Large pothole creates an immediate collision risk on a busy bus route.',
     aiUrgency: 'High',
     upvotes: 18,
-    createdAt: daysAgo(1),
+    isVerified: true,
+    priority: 'High',
+    lat: 6.892,
+    lng: 79.855,
   },
   {
-    id: '2',
     title: 'Streetlights not working near railway station',
     description: 'Several streetlights are not working along the road beside the station.',
     category: 'Streetlight',
@@ -42,10 +30,12 @@ const reports = [
     aiSummary: 'Multiple failed streetlights reduce visibility near Dehiwala station.',
     aiUrgency: 'Medium',
     upvotes: 11,
-    createdAt: daysAgo(3),
+    isVerified: true,
+    priority: 'Medium',
+    lat: 6.851,
+    lng: 79.865,
   },
   {
-    id: '3',
     title: 'Blocked drain causing road flooding',
     description: 'The roadside drain is blocked and the lane floods even after light rain.',
     category: 'Drainage',
@@ -57,10 +47,12 @@ const reports = [
     aiSummary: 'Blocked drainage is repeatedly flooding part of Peradeniya Road.',
     aiUrgency: 'Medium',
     upvotes: 9,
-    createdAt: daysAgo(4),
+    isVerified: false,
+    priority: 'Medium',
+    lat: 7.29,
+    lng: 80.633,
   },
   {
-    id: '4',
     title: 'Poorly lit isolated bus stop',
     description: 'The bus stop and nearby footpath are dark and feel isolated after evening hours.',
     category: 'Unsafe Area',
@@ -69,13 +61,16 @@ const reports = [
     status: 'Open',
     isAnonymous: true,
     timeOfDay: 'Unsafe after dark',
+    safetyContext: 'Lack of working streetlights and high pedestrian traffic at night.',
     aiSummary: 'Poor lighting and isolation create a safety concern around the bus stop at night.',
     aiUrgency: 'High',
     upvotes: 22,
-    createdAt: daysAgo(2),
+    isVerified: true,
+    priority: 'High',
+    lat: 6.927,
+    lng: 79.878,
   },
   {
-    id: '5',
     title: 'Broken road edge near bridge',
     description: 'The road edge has collapsed near the bridge and needs a visible safety barrier.',
     category: 'Road Damage',
@@ -87,10 +82,12 @@ const reports = [
     aiSummary: 'Collapsed road edge near a bridge requires a barrier and urgent repair.',
     aiUrgency: 'High',
     upvotes: 15,
-    createdAt: daysAgo(6),
+    isVerified: true,
+    priority: 'High',
+    lat: 5.972,
+    lng: 80.428,
   },
   {
-    id: '6',
     title: 'Loose manhole cover',
     description: 'A loose manhole cover makes a loud movement whenever a vehicle passes over it.',
     category: 'Other',
@@ -102,10 +99,12 @@ const reports = [
     aiSummary: 'An unstable manhole cover may become dangerous to road users.',
     aiUrgency: 'Medium',
     upvotes: 7,
-    createdAt: daysAgo(9),
+    isVerified: true,
+    priority: 'Medium',
+    lat: 9.661,
+    lng: 80.025,
   },
   {
-    id: '7',
     title: 'Damaged pedestrian crossing surface',
     description: 'The crossing surface is cracked and difficult for wheelchairs and older pedestrians.',
     category: 'Road Damage',
@@ -117,10 +116,12 @@ const reports = [
     aiSummary: 'Cracked crossing surface affects pedestrian accessibility.',
     aiUrgency: 'Low',
     upvotes: 5,
-    createdAt: daysAgo(12),
+    isVerified: true,
+    priority: 'Low',
+    lat: 7.717,
+    lng: 81.7,
   },
   {
-    id: '8',
     title: 'Potholes at Galle bus stand entrance',
     description: 'Several potholes at the entrance slow buses and collect stagnant rainwater.',
     category: 'Pothole',
@@ -132,17 +133,215 @@ const reports = [
     aiSummary: 'Multiple water-filled potholes obstruct the Galle bus stand entrance.',
     aiUrgency: 'Medium',
     upvotes: 13,
-    createdAt: daysAgo(5),
+    isVerified: false,
+    priority: 'Medium',
+    lat: 6.053,
+    lng: 80.217,
   },
 ];
 
-let nextId = reports.length + 1;
+let inMemoryStore = [...initialSeedReports.map((r, i) => ({ id: String(i + 1), ...r }))];
+let isMongooseConnected = false;
 
-function getStats() {
-  const totalReports = reports.length;
-  const openCount = reports.filter((r) => r.status === 'Open').length;
-  const inProgressCount = reports.filter((r) => r.status === 'In Progress').length;
-  const resolvedCount = reports.filter((r) => r.status === 'Resolved').length;
+async function seedDatabaseIfEmpty() {
+  try {
+    const count = await Report.countDocuments();
+    if (count === 0) {
+      console.log('[DB] Database collection is empty. Seeding initial Sri Lankan reports...');
+      await Report.insertMany(initialSeedReports);
+      console.log(`[DB] Successfully seeded ${initialSeedReports.length} reports to MongoDB Atlas!`);
+    } else {
+      console.log(`[DB] MongoDB Atlas contains ${count} reports.`);
+    }
+    isMongooseConnected = true;
+  } catch (error) {
+    console.error('[DB] Seeding failed:', error.message);
+    isMongooseConnected = false;
+  }
+}
+
+function normalizeDoc(doc) {
+  if (!doc) return null;
+  const obj = doc.toObject ? doc.toObject() : doc;
+  return {
+    ...obj,
+    id: obj.id || obj._id?.toString(),
+  };
+}
+
+async function getReports() {
+  if (isMongooseConnected) {
+    try {
+      const docs = await Report.find().sort({ createdAt: -1 });
+      return docs.map(normalizeDoc);
+    } catch (e) {
+      console.warn('[DB] Mongoose fetch error, falling back to memory:', e.message);
+    }
+  }
+  return inMemoryStore;
+}
+
+async function findReportById(id) {
+  if (isMongooseConnected) {
+    try {
+      if (id.match(/^[0-9a-fA-F]{24}$/)) {
+        const doc = await Report.findById(id);
+        if (doc) return normalizeDoc(doc);
+      }
+      const docByTitle = await Report.findOne({ id });
+      if (docByTitle) return normalizeDoc(docByTitle);
+    } catch (e) {
+      console.warn('[DB] Mongoose findById error:', e.message);
+    }
+  }
+  return inMemoryStore.find((r) => r.id === String(id));
+}
+
+async function createReport(data) {
+  const reportObj = {
+    title: data.title.trim(),
+    description: data.description.trim(),
+    category: data.category,
+    location: data.location.trim(),
+    severity: data.severity || 'Medium',
+    status: 'Open',
+    isAnonymous: data.isAnonymous ?? false,
+    timeOfDay: data.timeOfDay?.trim() || null,
+    safetyContext: data.safetyContext?.trim() || null,
+    aiSummary: data.aiSummary?.trim() || '',
+    aiUrgency: data.aiUrgency || data.severity || 'Medium',
+    upvotes: 0,
+    isVerified: data.isVerified ?? false,
+    priority: data.priority || data.severity || 'Medium',
+    lat: data.lat || 6.9271,
+    lng: data.lng || 79.8612,
+    userId: data.userId || null,
+  };
+
+  if (isMongooseConnected) {
+    try {
+      const doc = await Report.create(reportObj);
+      const normalized = normalizeDoc(doc);
+      inMemoryStore.unshift(normalized);
+      return normalized;
+    } catch (e) {
+      console.error('[DB] Mongoose create error:', e.message);
+    }
+  }
+
+  const memDoc = {
+    id: String(inMemoryStore.length + 1),
+    ...reportObj,
+    createdAt: new Date().toISOString(),
+  };
+  inMemoryStore.unshift(memDoc);
+  return memDoc;
+}
+
+async function updateReportStatus(reportOrId, status) {
+  const id = typeof reportOrId === 'object' ? reportOrId.id : reportOrId;
+
+  if (isMongooseConnected && id.match(/^[0-9a-fA-F]{24}$/)) {
+    try {
+      const doc = await Report.findByIdAndUpdate(id, { status }, { new: true });
+      if (doc) return normalizeDoc(doc);
+    } catch (e) {
+      console.error('[DB] Mongoose update status error:', e.message);
+    }
+  }
+
+  const report = typeof reportOrId === 'object' ? reportOrId : inMemoryStore.find((r) => r.id === String(id));
+  if (report) {
+    report.status = status;
+    return report;
+  }
+  return null;
+}
+
+async function upvoteReport(reportOrId) {
+  const id = typeof reportOrId === 'object' ? reportOrId.id : reportOrId;
+
+  if (isMongooseConnected && id.match(/^[0-9a-fA-F]{24}$/)) {
+    try {
+      const doc = await Report.findByIdAndUpdate(id, { $inc: { upvotes: 1 } }, { new: true });
+      if (doc) return normalizeDoc(doc);
+    } catch (e) {
+      console.error('[DB] Mongoose upvote error:', e.message);
+    }
+  }
+
+  const report = typeof reportOrId === 'object' ? reportOrId : inMemoryStore.find((r) => r.id === String(id));
+  if (report) {
+    report.upvotes += 1;
+    return report;
+  }
+  return null;
+}
+
+async function verifyReport(reportOrId) {
+  const id = typeof reportOrId === 'object' ? reportOrId.id : reportOrId;
+
+  if (isMongooseConnected && id.match(/^[0-9a-fA-F]{24}$/)) {
+    try {
+      const doc = await Report.findByIdAndUpdate(id, { isVerified: true }, { new: true });
+      if (doc) return normalizeDoc(doc);
+    } catch (e) {
+      console.error('[DB] Mongoose verify error:', e.message);
+    }
+  }
+
+  const report = typeof reportOrId === 'object' ? reportOrId : inMemoryStore.find((r) => r.id === String(id));
+  if (report) {
+    report.isVerified = true;
+    return report;
+  }
+  return null;
+}
+
+async function setReportPriority(reportOrId, priority) {
+  const id = typeof reportOrId === 'object' ? reportOrId.id : reportOrId;
+
+  if (isMongooseConnected && id.match(/^[0-9a-fA-F]{24}$/)) {
+    try {
+      const doc = await Report.findByIdAndUpdate(id, { priority, severity: priority }, { new: true });
+      if (doc) return normalizeDoc(doc);
+    } catch (e) {
+      console.error('[DB] Mongoose set priority error:', e.message);
+    }
+  }
+
+  const report = typeof reportOrId === 'object' ? reportOrId : inMemoryStore.find((r) => r.id === String(id));
+  if (report) {
+    report.priority = priority;
+    report.severity = priority;
+    return report;
+  }
+  return null;
+}
+
+async function getStats() {
+  if (isMongooseConnected) {
+    try {
+      const totalReports = await Report.countDocuments();
+      const openCount = await Report.countDocuments({ status: 'Open' });
+      const inProgressCount = await Report.countDocuments({ status: 'In Progress' });
+      const resolvedCount = await Report.countDocuments({ status: 'Resolved' });
+
+      return {
+        totalReports,
+        openCount,
+        inProgressCount,
+        resolvedCount,
+      };
+    } catch (e) {
+      console.warn('[DB] Mongoose stats error, falling back to memory:', e.message);
+    }
+  }
+
+  const totalReports = inMemoryStore.length;
+  const openCount = inMemoryStore.filter((r) => r.status === 'Open').length;
+  const inProgressCount = inMemoryStore.filter((r) => r.status === 'In Progress').length;
+  const resolvedCount = inMemoryStore.filter((r) => r.status === 'Resolved').length;
 
   return {
     totalReports,
@@ -152,63 +351,25 @@ function getStats() {
   };
 }
 
-function getReports() {
-  return reports;
-}
-
-function findReportById(id) {
-  return reports.find((report) => report.id === String(id));
-}
-
-function createReport(data) {
-  const report = {
-    id: String(nextId++),
-    title: data.title.trim(),
-    description: data.description.trim(),
-    category: data.category,
-    location: data.location.trim(),
-    severity: data.severity || 'Medium',
-    status: 'Open',
-    isAnonymous: data.isAnonymous ?? false,
-    timeOfDay: data.timeOfDay?.trim() || null,
-    aiSummary: data.aiSummary?.trim() || '',
-    aiUrgency: data.aiUrgency || data.severity || 'Medium',
-    upvotes: 0,
-    isVerified: data.isVerified ?? false,
-    priority: data.priority || data.severity || 'Medium',
-    createdAt: new Date().toISOString(),
-  };
-
-  reports.unshift(report);
-  return report;
-}
-
-function updateReportStatus(report, status) {
-  report.status = status;
-  return report;
-}
-
-function upvoteReport(report) {
-  report.upvotes += 1;
-  return report;
-}
-
-function verifyReport(report) {
-  report.isVerified = true;
-  return report;
-}
-
-function setReportPriority(report, priority) {
-  report.priority = priority;
-  report.severity = priority;
-  return report;
+async function getUserReports(userId) {
+  if (isMongooseConnected) {
+    try {
+      const docs = await Report.find({ userId }).sort({ createdAt: -1 });
+      return docs.map(normalizeDoc);
+    } catch (e) {
+      console.warn('[DB] Mongoose getUserReports error:', e.message);
+    }
+  }
+  return inMemoryStore.filter((r) => r.userId === userId);
 }
 
 module.exports = {
   CATEGORIES,
   SEVERITIES,
   STATUSES,
+  seedDatabaseIfEmpty,
   getReports,
+  getUserReports,
   findReportById,
   createReport,
   updateReportStatus,
