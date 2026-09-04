@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { Report, CATEGORIES, SEVERITIES, STATUSES } = require('./Report');
 
 const initialSeedReports = [
@@ -49,83 +50,84 @@ const initialSeedReports = [
     upvotes: 9,
     isVerified: false,
     priority: 'Medium',
-    lat: 7.29,
-    lng: 80.633,
+    lat: 7.2906,
+    lng: 80.6337,
   },
   {
-    title: 'Poorly lit isolated bus stop',
-    description: 'The bus stop and nearby footpath are dark and feel isolated after evening hours.',
+    title: 'Damaged culvert edge near bend',
+    description: 'The edge of the culvert has collapsed into the ditch without warning signs.',
+    category: 'Road Damage',
+    location: 'A9 Road, Kilinochchi',
+    severity: 'High',
+    status: 'Open',
+    isAnonymous: false,
+    timeOfDay: null,
+    aiSummary: 'Collapsed culvert edge presents severe night hazard on A9.',
+    aiUrgency: 'High',
+    upvotes: 24,
+    isVerified: true,
+    priority: 'High',
+    lat: 9.3803,
+    lng: 80.4037,
+  },
+  {
+    title: 'Unlit pedestrian stretch near bus stop',
+    description: 'Poorly lit section where passengers wait for buses after 8 PM.',
     category: 'Unsafe Area',
-    location: 'Baseline Road, Dematagoda, Colombo 09',
+    location: 'High Level Road, Maharagama',
     severity: 'High',
     status: 'Open',
     isAnonymous: true,
-    timeOfDay: 'Unsafe after dark',
-    safetyContext: 'Lack of working streetlights and high pedestrian traffic at night.',
-    aiSummary: 'Poor lighting and isolation create a safety concern around the bus stop at night.',
+    timeOfDay: 'After 8 PM',
+    safetyContext: 'Women waiting for evening buses report feeling unsafe due to total darkness.',
+    aiSummary: 'Dark pedestrian area presents safety concern for late commuters.',
     aiUrgency: 'High',
-    upvotes: 22,
+    upvotes: 31,
     isVerified: true,
     priority: 'High',
-    lat: 6.927,
-    lng: 79.878,
+    lat: 6.848,
+    lng: 79.926,
   },
   {
-    title: 'Broken road edge near bridge',
-    description: 'The road edge has collapsed near the bridge and needs a visible safety barrier.',
-    category: 'Road Damage',
-    location: 'Matara Road, Weligama',
-    severity: 'High',
-    status: 'In Progress',
-    isAnonymous: false,
-    timeOfDay: null,
-    aiSummary: 'Collapsed road edge near a bridge requires a barrier and urgent repair.',
-    aiUrgency: 'High',
-    upvotes: 15,
-    isVerified: true,
-    priority: 'High',
-    lat: 5.972,
-    lng: 80.428,
-  },
-  {
-    title: 'Loose manhole cover',
-    description: 'A loose manhole cover makes a loud movement whenever a vehicle passes over it.',
-    category: 'Other',
-    location: 'Hospital Street, Jaffna',
-    severity: 'Medium',
-    status: 'Resolved',
-    isAnonymous: false,
-    timeOfDay: null,
-    aiSummary: 'An unstable manhole cover may become dangerous to road users.',
-    aiUrgency: 'Medium',
-    upvotes: 7,
-    isVerified: true,
-    priority: 'Medium',
-    lat: 9.661,
-    lng: 80.025,
-  },
-  {
-    title: 'Damaged pedestrian crossing surface',
-    description: 'The crossing surface is cracked and difficult for wheelchairs and older pedestrians.',
-    category: 'Road Damage',
-    location: 'Main Street, Batticaloa',
+    title: 'Broken streetlight behind market complex',
+    description: 'Streetlight pole leans dangerously and light flickers constantly.',
+    category: 'Streetlight',
+    location: 'Main Street, Negombo',
     severity: 'Low',
     status: 'Resolved',
     isAnonymous: false,
     timeOfDay: null,
-    aiSummary: 'Cracked crossing surface affects pedestrian accessibility.',
+    aiSummary: 'Flickering pole repaired by local council workforce.',
     aiUrgency: 'Low',
-    upvotes: 5,
+    upvotes: 7,
     isVerified: true,
     priority: 'Low',
-    lat: 7.717,
-    lng: 81.7,
+    lat: 7.2083,
+    lng: 79.8358,
   },
   {
-    title: 'Potholes at Galle bus stand entrance',
-    description: 'Several potholes at the entrance slow buses and collect stagnant rainwater.',
+    title: 'Unsafe isolated lane near campus back gate',
+    description: 'Students walking home after evening classes report zero lighting.',
+    category: 'Unsafe Area',
+    location: 'University Road, Jaffna',
+    severity: 'Medium',
+    status: 'In Progress',
+    isAnonymous: true,
+    timeOfDay: '6:30 PM - 10:00 PM',
+    safetyContext: 'Isolated university stretch with no functional lamps.',
+    aiSummary: 'Unlit student pedestrian corridor scheduled for solar streetlamp install.',
+    aiUrgency: 'Medium',
+    upvotes: 42,
+    isVerified: true,
+    priority: 'Medium',
+    lat: 9.6849,
+    lng: 80.022,
+  },
+  {
+    title: 'Multiple potholes near Galle bus stand',
+    description: 'Heavy rainfall eroded the asphalt creating 3 large water-filled holes.',
     category: 'Pothole',
-    location: 'Colombo Road, Galle',
+    location: 'Bus Stand Road, Galle',
     severity: 'Medium',
     status: 'Open',
     isAnonymous: true,
@@ -141,7 +143,11 @@ const initialSeedReports = [
 ];
 
 let inMemoryStore = [...initialSeedReports.map((r, i) => ({ id: String(i + 1), ...r }))];
-let isMongooseConnected = false;
+let isMongooseConnectedFlag = false;
+
+function isConnected() {
+  return mongoose.connection.readyState === 1 || isMongooseConnectedFlag;
+}
 
 async function seedDatabaseIfEmpty() {
   try {
@@ -153,10 +159,9 @@ async function seedDatabaseIfEmpty() {
     } else {
       console.log(`[DB] MongoDB Atlas contains ${count} reports.`);
     }
-    isMongooseConnected = true;
+    isMongooseConnectedFlag = true;
   } catch (error) {
     console.error('[DB] Seeding failed:', error.message);
-    isMongooseConnected = false;
   }
 }
 
@@ -170,7 +175,7 @@ function normalizeDoc(doc) {
 }
 
 async function getReports() {
-  if (isMongooseConnected) {
+  if (isConnected()) {
     try {
       const docs = await Report.find().sort({ createdAt: -1 });
       return docs.map(normalizeDoc);
@@ -178,23 +183,21 @@ async function getReports() {
       console.warn('[DB] Mongoose fetch error, falling back to memory:', e.message);
     }
   }
+
   return inMemoryStore;
 }
 
 async function findReportById(id) {
-  if (isMongooseConnected) {
+  if (isConnected() && String(id).match(/^[0-9a-fA-F]{24}$/)) {
     try {
-      if (id.match(/^[0-9a-fA-F]{24}$/)) {
-        const doc = await Report.findById(id);
-        if (doc) return normalizeDoc(doc);
-      }
-      const docByTitle = await Report.findOne({ id });
-      if (docByTitle) return normalizeDoc(docByTitle);
+      const doc = await Report.findById(id);
+      if (doc) return normalizeDoc(doc);
     } catch (e) {
       console.warn('[DB] Mongoose findById error:', e.message);
     }
   }
-  return inMemoryStore.find((r) => r.id === String(id));
+
+  return inMemoryStore.find((r) => r.id === String(id)) || null;
 }
 
 async function createReport(data) {
@@ -209,23 +212,25 @@ async function createReport(data) {
     timeOfDay: data.timeOfDay?.trim() || null,
     safetyContext: data.safetyContext?.trim() || null,
     aiSummary: data.aiSummary?.trim() || '',
-    aiUrgency: data.aiUrgency || data.severity || 'Medium',
+    aiUrgency: ['Low', 'Medium', 'High'].includes(data.aiUrgency) ? data.aiUrgency : (data.severity || 'Medium'),
     upvotes: 0,
     isVerified: data.isVerified ?? false,
-    priority: data.priority || data.severity || 'Medium',
-    lat: data.lat || 6.9271,
-    lng: data.lng || 79.8612,
+    priority: ['Low', 'Medium', 'High'].includes(data.priority) ? data.priority : (data.severity || 'Medium'),
+    lat: Number(data.lat) || 6.9271,
+    lng: Number(data.lng) || 79.8612,
     userId: data.userId || null,
   };
 
-  if (isMongooseConnected) {
+  if (isConnected()) {
     try {
       const doc = await Report.create(reportObj);
       const normalized = normalizeDoc(doc);
+      console.log('[DB] New report saved to MongoDB Atlas with ID:', normalized.id);
       inMemoryStore.unshift(normalized);
       return normalized;
     } catch (e) {
       console.error('[DB] Mongoose create error:', e.message);
+      throw e;
     }
   }
 
@@ -241,7 +246,7 @@ async function createReport(data) {
 async function updateReportStatus(reportOrId, status) {
   const id = typeof reportOrId === 'object' ? reportOrId.id : reportOrId;
 
-  if (isMongooseConnected && id.match(/^[0-9a-fA-F]{24}$/)) {
+  if (isConnected() && String(id).match(/^[0-9a-fA-F]{24}$/)) {
     try {
       const doc = await Report.findByIdAndUpdate(id, { status }, { new: true });
       if (doc) return normalizeDoc(doc);
@@ -261,7 +266,7 @@ async function updateReportStatus(reportOrId, status) {
 async function upvoteReport(reportOrId) {
   const id = typeof reportOrId === 'object' ? reportOrId.id : reportOrId;
 
-  if (isMongooseConnected && id.match(/^[0-9a-fA-F]{24}$/)) {
+  if (isConnected() && String(id).match(/^[0-9a-fA-F]{24}$/)) {
     try {
       const doc = await Report.findByIdAndUpdate(id, { $inc: { upvotes: 1 } }, { new: true });
       if (doc) return normalizeDoc(doc);
@@ -281,7 +286,7 @@ async function upvoteReport(reportOrId) {
 async function verifyReport(reportOrId) {
   const id = typeof reportOrId === 'object' ? reportOrId.id : reportOrId;
 
-  if (isMongooseConnected && id.match(/^[0-9a-fA-F]{24}$/)) {
+  if (isConnected() && String(id).match(/^[0-9a-fA-F]{24}$/)) {
     try {
       const doc = await Report.findByIdAndUpdate(id, { isVerified: true }, { new: true });
       if (doc) return normalizeDoc(doc);
@@ -301,7 +306,7 @@ async function verifyReport(reportOrId) {
 async function setReportPriority(reportOrId, priority) {
   const id = typeof reportOrId === 'object' ? reportOrId.id : reportOrId;
 
-  if (isMongooseConnected && id.match(/^[0-9a-fA-F]{24}$/)) {
+  if (isConnected() && String(id).match(/^[0-9a-fA-F]{24}$/)) {
     try {
       const doc = await Report.findByIdAndUpdate(id, { priority, severity: priority }, { new: true });
       if (doc) return normalizeDoc(doc);
@@ -320,7 +325,7 @@ async function setReportPriority(reportOrId, priority) {
 }
 
 async function getStats() {
-  if (isMongooseConnected) {
+  if (isConnected()) {
     try {
       const totalReports = await Report.countDocuments();
       const openCount = await Report.countDocuments({ status: 'Open' });
@@ -352,7 +357,7 @@ async function getStats() {
 }
 
 async function getUserReports(userId) {
-  if (isMongooseConnected) {
+  if (isConnected()) {
     try {
       const docs = await Report.find({ userId }).sort({ createdAt: -1 });
       return docs.map(normalizeDoc);

@@ -1,30 +1,10 @@
-/**
- * MapView.jsx — Map View page
- * ─────────────────────────────────────────────────────────────────────────────
- * Features:
- *  ✅ Leaflet + OpenStreetMap map — no API key required
- *  ✅ All reports shown as colour-coded pins
- *  ✅ Round pin = infrastructure, Diamond pin = Unsafe Area
- *  ✅ Pin colour = severity (red / amber / green)
- *  ✅ Click pin → popup with title, category, status, description, emergency contacts
- *  ✅ Category filter toggle chips above the map
- *  ✅ List ↔ Map toggle at the top
- *  ✅ Safer Route indicator — flags if a searched location string
- *     matches an Unsafe Area report's location
- *  ✅ Map legend rendered inside the map (handled by ReportMap)
- *
- * ReportMap is fully isolated — all Leaflet logic lives there.
- * This page only manages filter state and passes data down.
- */
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { List, Map as MapIcon, Search, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { List, Map as MapIcon, Search, ShieldCheck, ShieldAlert, RefreshCw } from 'lucide-react';
 
-import { mockReports, CATEGORIES } from '../data/mockReports';
+import { CATEGORIES } from '../data/mockReports';
 import ReportMap from '../components/ReportMap';
 
-// ─── Category chip colours ─────────────────────────────────────────────────
 const CHIP_STYLE = {
   Pothole:       { active: 'bg-orange-500 text-white border-orange-500', idle: 'bg-white text-orange-700 border-orange-300 hover:bg-orange-50' },
   Streetlight:   { active: 'bg-yellow-400 text-gray-900 border-yellow-400', idle: 'bg-white text-yellow-700 border-yellow-300 hover:bg-yellow-50' },
@@ -43,23 +23,37 @@ const CATEGORY_ICON = {
   Other:         '📍',
 };
 
-// ─── Component ─────────────────────────────────────────────────────────────
-
 export default function MapView() {
   const navigate = useNavigate();
 
-  // All categories shown by default
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeCategories, setActiveCategories] = useState(new Set(CATEGORIES));
-
-  // Safer route search
   const [routeSearch, setRouteSearch] = useState('');
 
-  // ── Toggle a single category chip ──
+  const fetchLiveReports = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/reports');
+      const data = await res.json();
+      if (res.ok && data.reports) {
+        setReports(data.reports);
+      }
+    } catch (err) {
+      console.error('Failed to fetch map reports:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveReports();
+  }, []);
+
   function toggleCategory(cat) {
     setActiveCategories((prev) => {
       const next = new Set(prev);
       if (next.has(cat)) {
-        // Don't allow deselecting the last active category
         if (next.size === 1) return prev;
         next.delete(cat);
       } else {
@@ -69,46 +63,46 @@ export default function MapView() {
     });
   }
 
-  // ── Select / deselect all ──
   const allSelected = activeCategories.size === CATEGORIES.length;
   function toggleAll() {
     setActiveCategories(allSelected ? new Set([CATEGORIES[0]]) : new Set(CATEGORIES));
   }
 
-  // ── Safer Route check ──
-  // Returns list of unsafe-area reports whose location matches the search string
   const nearbyUnsafe = useMemo(() => {
     if (!routeSearch.trim()) return [];
     const q = routeSearch.toLowerCase();
-    return mockReports.filter(
+    return reports.filter(
       (r) =>
         r.category === 'Unsafe Area' &&
-        (r.location.toLowerCase().includes(q) || r.title.toLowerCase().includes(q))
+        (r.location?.toLowerCase().includes(q) || r.title?.toLowerCase().includes(q))
     );
-  }, [routeSearch]);
+  }, [routeSearch, reports]);
 
-  const routeIsSafe    = routeSearch.trim() && nearbyUnsafe.length === 0;
-  const routeHasRisk   = nearbyUnsafe.length > 0;
-
-  // ─── Render ──────────────────────────────────────────────────────────────
+  const routeIsSafe = routeSearch.trim() && nearbyUnsafe.length === 0;
+  const routeHasRisk = nearbyUnsafe.length > 0;
 
   return (
     <div className="min-h-screen bg-orange-50 flex flex-col">
-
-      {/* ── Page header ── */}
+      {/* Header */}
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5">
-
-          {/* Title + List/Map toggle */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Map View</h1>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                Map View
+                <button
+                  onClick={fetchLiveReports}
+                  className="p-1 text-gray-400 hover:text-orange-600 rounded-full hover:bg-orange-50 transition-colors"
+                  title="Refresh map pins"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+              </h1>
               <p className="text-sm text-gray-500 mt-0.5">
-                All {mockReports.length} reports plotted on the map · OpenStreetMap
+                All {reports.length} reports plotted live from MongoDB Atlas
               </p>
             </div>
 
-            {/* List ↔ Map toggle */}
             <div className="flex rounded-xl overflow-hidden border border-orange-200 shadow-sm">
               <button
                 onClick={() => navigate('/reports')}
@@ -125,20 +119,19 @@ export default function MapView() {
             </div>
           </div>
 
-          {/* ── Safer Route indicator ── */}
+          {/* Safer Route indicator */}
           <div className="mt-4">
             <div className="relative max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Check a location for safety risks… (e.g. Dematagoda)"
+                placeholder="Check a location for safety risks… (e.g. Maharagama)"
                 value={routeSearch}
                 onChange={(e) => setRouteSearch(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 shadow-sm"
               />
             </div>
 
-            {/* Result */}
             {routeIsSafe && (
               <div className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 font-medium">
                 <ShieldCheck className="w-4 h-4" />
@@ -166,11 +159,10 @@ export default function MapView() {
             )}
           </div>
 
-          {/* ── Category filter chips ── */}
+          {/* Category filter chips */}
           <div className="mt-4 flex flex-wrap gap-2 items-center">
             <span className="text-xs text-gray-500 font-medium">Filter:</span>
 
-            {/* All / None toggle */}
             <button
               onClick={toggleAll}
               className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
@@ -184,7 +176,7 @@ export default function MapView() {
 
             {CATEGORIES.map((cat) => {
               const isActive = activeCategories.has(cat);
-              const style    = CHIP_STYLE[cat];
+              const style = CHIP_STYLE[cat];
               return (
                 <button
                   key={cat}
@@ -195,11 +187,10 @@ export default function MapView() {
                 >
                   <span>{CATEGORY_ICON[cat]}</span>
                   {cat}
-                  {/* Badge showing count */}
                   <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                     isActive ? 'bg-white/30' : 'bg-gray-100'
                   }`}>
-                    {mockReports.filter((r) => r.category === cat).length}
+                    {reports.filter((r) => r.category === cat).length}
                   </span>
                 </button>
               );
@@ -208,28 +199,35 @@ export default function MapView() {
         </div>
       </div>
 
-      {/* ── Map fills the remaining viewport height ── */}
+      {/* Map View Container */}
       <div className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4">
         <div
           className="w-full rounded-2xl overflow-hidden shadow-lg border border-gray-200"
           style={{ height: 'calc(100vh - 320px)', minHeight: '420px' }}
         >
-          <ReportMap
-            reports={mockReports}
-            activeCategories={activeCategories}
-          />
+          {loading ? (
+            <div className="h-full flex items-center justify-center bg-gray-100">
+              <div className="text-center text-gray-500">
+                <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin text-orange-600" />
+                <p className="text-sm font-semibold">Plotting MongoDB Atlas Pins on Leaflet Map...</p>
+              </div>
+            </div>
+          ) : (
+            <ReportMap
+              reports={reports}
+              activeCategories={activeCategories}
+            />
+          )}
         </div>
 
-        {/* ── Visible pin count ── */}
         <p className="mt-3 text-xs text-gray-400 text-center">
           Showing{' '}
           <strong className="text-gray-600">
-            {mockReports.filter((r) => activeCategories.has(r.category)).length}
+            {reports.filter((r) => activeCategories.has(r.category)).length}
           </strong>{' '}
-          of {mockReports.length} reports on map · Click any pin for details
+          of {reports.length} reports on map · Click any pin for details
         </p>
       </div>
     </div>
   );
 }
-
